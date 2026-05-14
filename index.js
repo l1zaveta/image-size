@@ -5,27 +5,16 @@ const mongoose = require('mongoose');
 const app = express();
 const port = process.env.PORT || 3000;
 
-
-const MONGO_URL = 'mongodb+srv://admin:311202@cluster0.awkqw3q.mongodb.net/?appName=Cluster0';
-
-mongoose.connect(MONGO_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
-.then(() => console.log('MongoDB подключена'))
-.catch(err => console.error('Ошибка MongoDB:', err.message));
-
-const userSchema = new mongoose.Schema({
-    login: String,
-    password: String
-});
-
-const User = mongoose.model('User', userSchema, 'users');
-
-
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'image/png') {
+            cb(null, true);
+        } else {
+            cb(new Error('Только PNG'), false);
+        }
+    },
     limits: { fileSize: 10 * 1024 * 1024 }
 });
 
@@ -58,41 +47,49 @@ app.post('/size2json/', upload.single('image'), async (req, res) => {
 app.post('/insert/', async (req, res) => {
     const { login, password, URL } = req.body;
 
-
-    if (URL) {
-        try {
-            await mongoose.disconnect();
-            await mongoose.connect(URL, {
-                useNewUrlParser: true,
-                useUnifiedTopology: true
-            });
-            console.log('Подключились к:', URL);
-        } catch (err) {
-            return res.send('Ошибка подключения к MongoDB: ' + err.message);
-        }
-    }
-
-  
-    if (!login || !password) {
-        return res.send('Ошибка: нужны login и password');
+   
+    if (!login || !password || !URL) {
+        return res.type('text/plain').send('ERROR: missing parameters');
     }
 
     try {
+       
+        const connection = await mongoose.createConnection(URL, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        }).asPromise();
+
+       
+        const userSchema = new mongoose.Schema({
+            login: String,
+            password: String
+        }, { versionKey: false });
+
+      
+        const User = connection.model('User', userSchema, 'users');
+
+       
         const newUser = new User({ login, password });
         await newUser.save();
-        res.send('OK');
+
+        
+        await connection.close();
+
+        res.type('text/plain').send('OK');
     } catch (error) {
-        res.send('Ошибка при сохранении: ' + error.message);
+        console.error('Ошибка:', error.message);
+        res.type('text/plain').send('ERROR: ' + error.message);
     }
 });
 
 
 app.use((err, req, res, next) => {
-    console.error(err);
-    res.status(500).send('Ошибка сервера');
+    if (err) {
+        return res.json({ width: 0, height: 0 });
+    }
+    next();
 });
 
-
 app.listen(port, '0.0.0.0', () => {
-    console.log('Сервер запущен на порту ' + port);
+    console.log('Server running on port ' + port);
 });
