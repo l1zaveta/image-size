@@ -18,7 +18,6 @@ const upload = multer({
     limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-
 app.use(express.urlencoded({ extended: true }));
 
 
@@ -47,37 +46,42 @@ app.post('/size2json/', upload.single('image'), async (req, res) => {
 app.post('/insert/', async (req, res) => {
     const { login, password, URL } = req.body;
 
-   
     if (!login || !password || !URL) {
         return res.type('text/plain').send('ERROR: missing parameters');
     }
 
     try {
        
-        const connection = await mongoose.createConnection(URL, {
+        const conn = mongoose.createConnection(URL, {
             useNewUrlParser: true,
             useUnifiedTopology: true
-        }).asPromise();
+        });
 
-       
+        
+        await new Promise((resolve, reject) => {
+            conn.once('open', () => resolve());
+            conn.once('error', (err) => reject(err));
+        });
+
+        
         const userSchema = new mongoose.Schema({
             login: String,
             password: String
-        }, { versionKey: false });
-
-      
-        const User = connection.model('User', userSchema, 'users');
+        });
 
        
+        const User = conn.model('User', userSchema, 'users');
+
+        
         const newUser = new User({ login, password });
         await newUser.save();
 
-        
-        await connection.close();
+      
+        await conn.close();
 
         res.type('text/plain').send('OK');
     } catch (error) {
-        console.error('Ошибка:', error.message);
+        console.error('Ошибка insert:', error.message);
         res.type('text/plain').send('ERROR: ' + error.message);
     }
 });
