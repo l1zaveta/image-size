@@ -4,61 +4,39 @@ const sharp = require('sharp');
 const app = express();
 const port = process.env.PORT || 3000;
 
-
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'image/png') {
-            cb(null, true);
-        } else {
-            cb(new Error('Файл должен быть в формате PNG'), false);
-        }
-    },
-    limits: {
-        fileSize: 10 * 1024 * 1024
-    }
+    limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 
 app.get('/login/', (req, res) => {
-   
-    const myLogin = 'l1zavetkns';
-
-    
-    res.setHeader('Content-Type', 'application/json');
-  
-    res.send(JSON.stringify({ login: myLogin }));
+    res.json({ login: 'l1zavetkns' });
 });
 
 
 app.post('/size2json/', upload.single('image'), async (req, res) => {
     if (!req.file) {
-        return res.status(400).json({ error: 'No image file provided' });
+        return res.json({ width: 0, height: 0 });
     }
 
     try {
         const metadata = await sharp(req.file.buffer).metadata();
-
-        
-        const result = {
-            width: metadata.width,
-            height: metadata.height
-        };
-
-        res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify(result));
-
+        return res.json({
+            width: metadata.width || 0,
+            height: metadata.height || 0
+        });
     } catch (error) {
-        res.status(400).json({ error: 'Invalid PNG file' });
+        return res.json({ width: 0, height: 0 });
     }
 });
 
 
 app.use((err, req, res, next) => {
-    res.status(400).json({ error: err.message });
+    res.json({ width: 0, height: 0 });
 });
 
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Server running on port ${port}`);
+    console.log('Server running on port ' + port);
 });
