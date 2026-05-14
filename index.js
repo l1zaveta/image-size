@@ -21,6 +21,11 @@ const upload = multer({
 app.use(express.urlencoded({ extended: true }));
 
 
+app.get('/', (req, res) => {
+    res.type('text/plain').send('OK');
+});
+
+
 app.get('/login/', (req, res) => {
     res.type('text/plain');
     res.send('l1zavetkns');
@@ -51,32 +56,24 @@ app.post('/insert/', async (req, res) => {
     }
 
     try {
-       
         const conn = mongoose.createConnection(URL, {
             useNewUrlParser: true,
             useUnifiedTopology: true
         });
 
-        
         await new Promise((resolve, reject) => {
             conn.once('open', () => resolve());
             conn.once('error', (err) => reject(err));
         });
 
-        
         const userSchema = new mongoose.Schema({
             login: String,
             password: String
         });
 
-       
         const User = conn.model('User', userSchema, 'users');
-
-        
         const newUser = new User({ login, password });
         await newUser.save();
-
-      
         await conn.close();
 
         res.type('text/plain').send('OK');
