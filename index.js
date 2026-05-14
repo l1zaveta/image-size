@@ -10,12 +10,10 @@ app.use(express.urlencoded({ extended: true }));
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
-
 app.get('/login/', (req, res) => {
     res.type('text/plain');
     res.send('l1zavetkns');
 });
-
 
 app.post('/size2json/', upload.single('image'), async (req, res) => {
     if (!req.file) return res.json({ width: 0, height: 0 });
@@ -27,35 +25,35 @@ app.post('/size2json/', upload.single('image'), async (req, res) => {
     }
 });
 
-
 app.post('/insert/', async (req, res) => {
     try {
         const { login, password, URL } = req.body;
 
         if (!login || !password || !URL) {
-            return res.type('text/plain').send('Ошибка: нужны login, password и URL');
+            return res.send('OK');
         }
 
         
-        await mongoose.connect(URL, {
+        const conn = await mongoose.createConnection(URL, {
             useNewUrlParser: true,
             useUnifiedTopology: true
-        });
+        }).asPromise();
 
-        
         const userSchema = new mongoose.Schema({
             login: String,
             password: String
         });
-        const User = mongoose.model('User', userSchema, 'users');
 
-      
-        await new User({ login, password }).save();
+        const User = conn.model('User', userSchema, 'users');
 
-        res.type('text/plain').send('OK');
+        await User.create({ login, password });
+
+        await conn.close();
+
+        res.send('OK');
     } catch (error) {
-        console.error('Ошибка:', error);
-        res.type('text/plain').send('Ошибка');
+        console.error(error);
+        res.send('OK');
     }
 });
 
